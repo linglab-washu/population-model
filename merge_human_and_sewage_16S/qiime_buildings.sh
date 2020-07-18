@@ -1,9 +1,4 @@
-module load seas-anaconda3
 source activate /project/linglab/envs/qiime2-2019.10
-mkdir /project/linglab/users/xy43/tmp
-export TMPDIR='/project/linglab/users/xy43/tmp'
-echo $TMPDIR
-
 
 #remember to use the EMP format, the forward file has to be called forward.fastq.gz, reverse file has to be called reversse.fastq.gz, barcode has to be called barcode.fastq.gz
 gzip 180626Alm_D18-5868_f.fq.lt
