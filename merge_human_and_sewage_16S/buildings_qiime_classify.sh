@@ -1,7 +1,4 @@
-module load seas-anaconda3
 source activate /project/linglab/envs/qiime2-2019.10
-export TMPDIR='/project/linglab/users/xy43/tmp'
-echo $TMPDIR
 
 qiime feature-classifier classify-sklearn \
   --i-reads ./buildings-rep-seqs.qza \
