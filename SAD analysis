@@ -1,0 +1,75 @@
+library(phyloseq)
+library(sads)
+
+# import otu table into R 
+
+sampleinfo<-read.csv("SampleInfo_afterxiaoqian.csv")
+otutable<-read.csv("humans_buildings_uw24_99.csv")
+taxonomy<-read.csv("tax_table_humans_buildings_uw24_99.csv")
+
+identical(otutable[,1],taxonomy[,1])
+
+#format otu table 
+v1<-rep("otu",10892) 
+v2<-as.character(c(1:10892)) 
+v.c<-paste0(v1,v2)
+rownames(otutable)<-v.c 
+otutable.rename<-otutable[,-1]
+
+#format sample data 
+rownames(taxonomy)<-v.c 
+taxonomy.rename<-taxonomy[,-1]
+taxonomy.rename.m<-as.matrix(taxonomy.rename)
+
+# format and phyloseqize
+rownames(sampleinfo)<-as.character(sampleinfo$SampleID)
+sampeinfo<-sampleinfo[,-1] 
+sampledata<-sample_data(sampleinfo)
+OTU<-otu_table(otutable.rename, taxa_are_rows=TRUE)
+TAX<-tax_table(taxonomy.rename.m)
+
+physeq<-phyloseq(OTU,TAX, sampledata)
+
+# rarefaction
+physeq.evendepth<-rarefy_even_depth(physeq, sample.size = 4000, rngseed= 42,  replace = TRUE, trimOTUs = TRUE, verbose = TRUE)
+
+#
+otu.table.human<-otu_table(subset_samples(physeq.evendepth,Type=="Human")) 
+otu.table.human.t<-t(as.matrix(otu.table.human))
+population.singleperson.list<- as.list(as.data.frame(otu.table.human))
+
+# define functions to perform maximum-likelihood estimation, regression, and access R-squared. 
+get.rad.rsquared<-function(data.list, distr){
+rsquared<-vector(mode="numeric",length=length(data.list))
+for(i in 1:length(data.list)){
+b<-data.list[[i]]
+a<-b[b>0]
+mod.sad<-fitrad(rad(a), rad = distr) 
+mod.pred<-radpred(mod.sad)
+rsquared[[i]]<-summary(lm(rad(a)[,2]~mod.pred[,2]))$r.squared
+}
+return(rsquared)
+}
+
+get.sad.rsquared.list<-function(data.list, distr){
+rsquared<-vector(mode="numeric",length=length(data.list))
+for(i in 1:length(data.list)){
+b<-data.list[[i]]
+a<-b[b>0]
+mod.sad<-fitsad(a, sad = distr) 
+mod.pred<-radpred(mod.sad)
+rsquared[[i]]<-summary(lm(rad(a)[,2]~mod.pred[,2]))$r.squared
+}
+return(rsquared)
+}
+
+rsquared.singleperson.bs<-get.sad.rsquared.list(population.singleperson.list,"bs")
+rsquared.singleperson.lnorm<-get.sad.rsquared.list(population.singleperson.list,"lnorm")
+rsquared.singleperson.ls<-get.sad.rsquared.list(population.singleperson.list,"ls")
+rsquared.singleperson.zipf<-get.rad.rsquared(population.singleperson.list,"zipf")
+rsquared.singleperson.poilog<-get.sad.rsquared.list(population.singleperson.list,"poilog")
+
+rsquared.singleperson.df<-as.data.frame(cbind(rsquared.singleperson.bs, rsquared.singleperson.lnorm, rsquared.singleperson.ls, rsquared.singleperson.zipf, rsquared.singleperson.poilog))
+
+rsquared.singleperson.df.mean<-apply(rsquared.singleperson.df, 2, mean)
+
